@@ -1,25 +1,18 @@
-import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, pgEnum, pgTable, serial, text, timestamp, varchar, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
  */
-export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
-  id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: text("role").$type<"user" | "admin">().default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -27,53 +20,53 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
- * Bundle (Baqa) table - represents product bundles/packs
+ * Bundle (Baqa) table
  */
-export const bundles = mysqlTable("bundles", {
-  id: int("id").autoincrement().primaryKey(),
+export const bundles = pgTable("bundles", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  category: varchar("category", { length: 100 }).notNull(), // e.g., "Tools", "Accessories"
+  category: varchar("category", { length: 100 }).notNull(),
   imageUrl: text("imageUrl"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Bundle price
-  originalPrice: decimal("originalPrice", { precision: 10, scale: 2 }).notNull(), // Sum of individual prices
-  savingsAmount: decimal("savingsAmount", { precision: 10, scale: 2 }).notNull(), // originalPrice - price
-  savingsPercentage: decimal("savingsPercentage", { precision: 5, scale: 2 }).notNull(), // (savings / originalPrice) * 100
-  isActive: int("isActive").default(1).notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  originalPrice: decimal("originalPrice", { precision: 10, scale: 2 }).notNull(),
+  savingsAmount: decimal("savingsAmount", { precision: 10, scale: 2 }).notNull(),
+  savingsPercentage: decimal("savingsPercentage", { precision: 5, scale: 2 }).notNull(),
+  isActive: integer("isActive").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Bundle = typeof bundles.$inferSelect;
 export type InsertBundle = typeof bundles.$inferInsert;
 
 /**
- * Component (Mkomponent) table - individual items within a bundle
+ * Component (Mkomponent) table
  */
-export const components = mysqlTable("components", {
-  id: int("id").autoincrement().primaryKey(),
-  bundleId: int("bundleId").notNull(),
+export const components = pgTable("components", {
+  id: serial("id").primaryKey(),
+  bundleId: integer("bundleId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   imageUrl: text("imageUrl"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Individual price
-  quantity: int("quantity").default(1).notNull(),
-  specifications: text("specifications"), // JSON string for detailed specs
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  quantity: integer("quantity").default(1).notNull(),
+  specifications: text("specifications"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Component = typeof components.$inferSelect;
 export type InsertComponent = typeof components.$inferInsert;
 
 /**
- * Order table - customer orders
+ * Order table
  */
-export const orders = mysqlTable("orders", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
   orderNumber: varchar("orderNumber", { length: 50 }).notNull().unique(),
-  status: mysqlEnum("status", ["pending", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
+  status: text("status").$type<"pending" | "processing" | "shipped" | "delivered" | "cancelled">().default("pending").notNull(),
   totalPrice: decimal("totalPrice", { precision: 10, scale: 2 }).notNull(),
   totalSavings: decimal("totalSavings", { precision: 10, scale: 2 }).notNull(),
   shippingAddress: text("shippingAddress").notNull(),
@@ -82,22 +75,22 @@ export const orders = mysqlTable("orders", {
   paymentMethod: varchar("paymentMethod", { length: 50 }),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 
 /**
- * OrderItem table - bundles in an order
+ * OrderItem table
  */
-export const orderItems = mysqlTable("orderItems", {
-  id: int("id").autoincrement().primaryKey(),
-  orderId: int("orderId").notNull(),
-  bundleId: int("bundleId").notNull(),
+export const orderItems = pgTable("orderItems", {
+  id: serial("id").primaryKey(),
+  orderId: integer("orderId").notNull(),
+  bundleId: integer("bundleId").notNull(),
   bundleName: varchar("bundleName", { length: 255 }).notNull(),
-  quantity: int("quantity").default(1).notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Price at time of order
+  quantity: integer("quantity").default(1).notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   savings: decimal("savings", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -106,7 +99,7 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
 
 /**
- * Relations for Drizzle ORM
+ * Relations
  */
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
@@ -144,7 +137,7 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 }));
 
 /**
- * Export schema for Drizzle ORM initialization
+ * Export schema
  */
 export const schema = {
   users,
